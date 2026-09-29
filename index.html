@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Interactive Indian Art Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#faf6ef;--card:#fff;--ink:#2b2118;--muted:#6f6254;--accent:#b5451b;--line:#e6dccb}
+@media (prefers-color-scheme:dark){:root{--bg:#1c1712;--card:#272019;--ink:#f3eadb;--muted:#b3a58f;--accent:#e2723f;--line:#3a3025}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);display:flex;flex-direction:column}
+header{padding:14px 20px;border-bottom:1px solid var(--line)}
+h1{font:700 1.5rem "Playfair Display",serif;margin:0;color:var(--accent)}
+header p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+main{flex:1;display:grid;grid-template-columns:380px 1fr;min-height:0}
+aside{overflow-y:auto;padding:14px;border-right:1px solid var(--line)}
+#map{height:100%;min-height:400px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:5px 11px;border-radius:99px;font-size:.8rem;cursor:pointer}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.item{display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;cursor:pointer;width:100%;text-align:left;color:inherit;font:inherit}
+.item:hover,.item.on{border-color:var(--accent)}
+.item b{display:block}.item small{color:var(--muted)}
+.dot{flex:none;width:30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:600;font-size:.85rem}
+.detail{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.hero{height:190px;background-size:cover;background-position:center;display:grid;place-items:center;font-size:4rem;color:#fff9}
+.detail .body{padding:14px 16px 18px}
+.detail h2{font:700 1.4rem "Playfair Display",serif;margin:0 0 2px}
+.tag{display:inline-block;font-size:.75rem;background:var(--accent);color:#fff;padding:2px 9px;border-radius:99px;margin:6px 0 10px}
+.detail h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);margin:14px 0 4px}
+.detail p{margin:0;line-height:1.55;font-size:.93rem}
+.detail ul{margin:0;padding-left:18px;line-height:1.55;font-size:.93rem}
+.back{background:none;border:0;color:var(--accent);cursor:pointer;font:inherit;padding:0 0 10px}
+.pin{width:32px;height:32px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--accent);border:2px solid #fff;box-shadow:0 2px 6px #0006;display:grid;place-items:center}
+.pin span{transform:rotate(45deg);color:#fff;font-weight:700;font-size:.85rem}
+.pin.active{background:#1f6f5c;transform:rotate(-45deg) scale(1.2)}
+.leaflet-popup-content{font-family:Inter,sans-serif}
+footer{padding:6px 16px;font-size:.75rem;color:var(--muted);border-top:1px solid var(--line)}
+@media(max-width:800px){main{grid-template-columns:1fr;grid-template-rows:55vh auto}#map{order:-1}aside{border-right:0;border-top:1px solid var(--line)}body{height:auto}html,body{height:auto}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Interactive Indian Art Map</h1>
+  <p>Explore the geographic spread of India's art traditions. Click a location on the map or in the list.</p>
+</header>
+<main>
+  <aside id="side"></aside>
+  <div id="map"></div>
+</main>
+<footer>Map data © OpenStreetMap contributors · Built with Leaflet</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* Add your own photos: put files in /images and set `image: "images/ajanta.jpg"` */
+const PLACES = [
+ {id:"ajanta",name:"Ajanta Caves",state:"Maharashtra",lat:20.5519,lng:75.7033,type:"Cave Murals",emoji:"🪷",color:"#8a5a2b",
+  image:"",
+  desc:"A series of rock-cut Buddhist cave monasteries and shrines in the Waghur river gorge, famous for their painted murals and sculpture.",
+  history:"Built in two phases, from about the 2nd century BCE to around the 5th–6th century CE. The murals depict Jataka tales (stories of the Buddha's previous lives) and court life, painted in a naturalistic style that influenced later Indian painting. Rediscovered by a British hunting party in 1819; a UNESCO World Heritage Site since 1983.",
+  highlights:["Bodhisattva Padmapani (Cave 1)","Jataka tale murals","Rock-cut chaitya halls and viharas"]},
+ {id:"ellora",name:"Ellora Caves",state:"Maharashtra",lat:20.0258,lng:75.1780,type:"Rock-cut Sculpture",emoji:"🛕",color:"#a23b2a",
+  image:"",
+  desc:"A complex of 34 rock-cut caves with Buddhist, Hindu and Jain monuments, sitting side by side in a single escarpment.",
+  history:"Carved between roughly the 6th and 10th centuries CE. The Kailasa Temple (Cave 16), commissioned under the Rashtrakuta dynasty, was excavated top-down from a single rock. Ellora shows the religious pluralism of the Deccan and is a UNESCO World Heritage Site (1983).",
+  highlights:["Kailasa Temple (Cave 16)","Buddhist Vishvakarma Cave","Jain caves with fine carving"]},
+ {id:"thanjavur",name:"Thanjavur",state:"Tamil Nadu",lat:10.7828,lng:79.1318,type:"Thanjavur Painting & Chola Art",emoji:"🎨",color:"#b8860b",
+  image:"",
+  desc:"A centre of Chola temple architecture, bronze casting and the richly ornamented Thanjavur (Tanjore) painting tradition.",
+  history:"The Brihadisvara Temple was completed around 1010 CE under Rajaraja I. Thanjavur painting flourished under the Nayaks and Marathas, using gesso work, gold leaf and glass beads on wood panels, typically showing Hindu deities in bold, flat compositions. Chola bronzes, such as the dancing Nataraja, are also world renowned.",
+  highlights:["Gold-leaf and gesso panels","Brihadisvara Temple","Chola bronze sculpture"]},
+ {id:"khajuraho",name:"Khajuraho",state:"Madhya Pradesh",lat:24.8318,lng:79.9199,type:"Temple Sculpture",emoji:"🏛️",color:"#c26a3d",
+  image:"",
+  desc:"A group of Hindu and Jain temples known for their Nagara-style architecture and highly detailed stone sculpture.",
+  history:"Built mostly between about 950 and 1050 CE under the Chandela dynasty. The sculptures cover many aspects of life, including deities, musicians, dancers and everyday scenes, alongside the well-known erotic panels. A UNESCO World Heritage Site since 1986.",
+  highlights:["Kandariya Mahadeva Temple","Lakshmana Temple","Apsara and celestial figures"]},
+ {id:"madhubani",name:"Madhubani (Mithila)",state:"Bihar",lat:26.3470,lng:86.0710,type:"Folk Painting",emoji:"🐟",color:"#c0392b",
+  image:"",
+  desc:"Home of Madhubani (Mithila) painting, known for intricate line work, bright natural colours and dense, ornamental patterns.",
+  history:"Traditionally painted by women on freshly plastered walls of homes, especially for weddings and festivals, then adapted to paper and cloth in the 20th century. Painted with fingers, twigs and nibs using natural dyes. Recognised styles include Bharni, Kachni, Tantrik, Godna and Kohbar. Artists such as Sita Devi and Ganga Devi helped bring it national and international fame.",
+  highlights:["Fish, peacock and lotus motifs","Kohbar wedding chamber art","Hindu deities and epic scenes"]},
+ {id:"warli",name:"Warli Region",state:"Maharashtra (Palghar/Thane)",lat:19.9740,lng:72.7330,type:"Tribal Art",emoji:"💃",color:"#7a4b2a",
+  image:"",
+  desc:"The homeland of the Warli tribe, whose minimalist wall paintings use simple geometric shapes to show daily life and nature.",
+  history:"Traditionally made with rice-paste white on red-ochre mud walls, mostly by women, for weddings and harvest rituals. Circles, triangles and squares form people, animals and the spiralling tarpa dance. Jivya Soma Mashe helped take Warli painting to a wider audience from the 1970s.",
+  highlights:["Tarpa dance circle","Chowk (wedding motif)","Rice-paste on mud walls"]},
+ {id:"puri",name:"Puri",state:"Odisha",lat:19.8135,lng:85.8312,type:"Pattachitra",emoji:"🌀",color:"#1f6f8b",
+  image:"",
+  desc:"Centre of Jagannath worship and of Pattachitra, a cloth-based scroll painting tradition of Odisha.",
+  history:"Pattachitra paintings are made on treated cloth with natural mineral and vegetable colours, showing Jagannath, Krishna lila and episodes from the epics. The nearby heritage village of Raghurajpur is known for its artist families, and the Rath Yatra festival keeps the visual tradition of the Jagannath cult alive. Palm-leaf engraving is another local art.",
+  highlights:["Jagannath Temple and Rath Yatra","Raghurajpur artist village","Palm-leaf engraving"]},
+ {id:"jaipur",name:"Jaipur",state:"Rajasthan",lat:26.9124,lng:75.7873,type:"Rajput Miniature Painting",emoji:"👑",color:"#d35d8a",
+  image:"",
+  desc:"The 'Pink City', a hub of Rajput court painting and crafts such as blue pottery, block printing and Kundan-Meena jewellery.",
+  history:"Founded in 1727 by Sawai Jai Singh II. The Jaipur school of miniature painting grew under the Kachwaha court, blending Rajput themes with Mughal influence, with fine detail, bright mineral pigments and gold. Nearby Amber Fort and the City Palace preserve murals and painted interiors.",
+  highlights:["Court and Krishna-themed miniatures","City Palace and Amber Fort murals","Blue pottery and Sanganer block printing"]}
+];
+
+const side = document.getElementById("side");
+const map = L.map("map",{scrollWheelZoom:true}).setView([22.5,79],5);
+const osm=L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; <a href='https://www.openstreetmap.org/copyright'>OpenStreetMap</a> contributors"}).addTo(map);
+const hot=L.tileLayer("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap contributors, Tiles: Humanitarian OSM Team"});
+const topo=L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",{maxZoom:17,attribution:"&copy; OpenStreetMap contributors, SRTM | Style: &copy; OpenTopoMap (CC-BY-SA)"});
+const esri=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",{maxZoom:18,attribution:"Tiles &copy; Esri"});
+L.control.layers({"OpenStreetMap":osm,"OSM Humanitarian":hot,"OpenTopoMap":topo,"Esri Streets":esri},null,{position:"topright"}).addTo(map);
+
+const types = ["All",...new Set(PLACES.map(p=>p.type))];
+let filter="All", selected=null;
+const markers={};
+
+function pinIcon(n,active){return L.divIcon({className:"",html:`<div class="pin ${active?"active":""}"><span>${n}</span></div>`,iconSize:[32,32],iconAnchor:[16,32],popupAnchor:[0,-30]});}
+
+PLACES.forEach((p,i)=>{
+  const m=L.marker([p.lat,p.lng],{icon:pinIcon(i+1,false),title:p.name}).addTo(map);
+  m.bindPopup(`<b>${p.name}</b><br>${p.type}<br><a href="#" data-id="${p.id}" class="more">View details →</a>`);
+  m.on("click",()=>select(p.id,false));
+  markers[p.id]=m;
+});
+map.on("popupopen",e=>{
+  const a=e.popup.getElement().querySelector(".more");
+  if(a)a.onclick=ev=>{ev.preventDefault();select(a.dataset.id,false);};
+});
+
+function heroStyle(p){
+  const bg=`linear-gradient(135deg,${p.color},#2b2118)`;
+  return p.image?`background-image:url('${p.image}'),${bg}`:`background-image:${bg}`;
+}
+
+function renderList(){
+  const chips=types.map(t=>`<button class="chip ${t===filter?"on":""}" data-t="${t}">${t}</button>`).join("");
+  const items=PLACES.map((p,i)=>({p,i})).filter(({p})=>filter==="All"||p.type===filter)
+    .map(({p,i})=>`<button class="item" data-id="${p.id}"><span class="dot">${i+1}</span><span><b>${p.name}</b><small>${p.state} · ${p.type}</small></span></button>`).join("");
+  side.innerHTML=`<div class="chips">${chips}</div>${items}`;
+  side.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{filter=c.dataset.t;applyFilter();renderList();});
+  side.querySelectorAll(".item").forEach(c=>c.onclick=()=>select(c.dataset.id,true));
+}
+
+function applyFilter(){
+  PLACES.forEach(p=>{
+    const show=filter==="All"||p.type===filter;
+    if(show&&!map.hasLayer(markers[p.id]))markers[p.id].addTo(map);
+    if(!show&&map.hasLayer(markers[p.id]))map.removeLayer(markers[p.id]);
+  });
+}
+
+function select(id,fly){
+  const p=PLACES.find(x=>x.id===id); if(!p)return;
+  if(selected)markers[selected].setIcon(pinIcon(PLACES.findIndex(x=>x.id===selected)+1,false));
+  selected=id;
+  markers[id].setIcon(pinIcon(PLACES.indexOf(p)+1,true));
+  if(fly)map.flyTo([p.lat,p.lng],7,{duration:1});
+  else map.panTo([p.lat,p.lng]);
+  map.closePopup();
+  side.innerHTML=`<button class="back">← All locations</button>
+  <article class="detail">
+    <div class="hero" style="${heroStyle(p)}">${p.image?"":p.emoji}</div>
+    <div class="body">
+      <h2>${p.name}</h2><small style="color:var(--muted)">${p.state}</small><br>
+      <span class="tag">${p.type}</span>
+      <h3>Description</h3><p>${p.desc}</p>
+      <h3>Historical context</h3><p>${p.history}</p>
+      <h3>Key highlights</h3><ul>${p.highlights.map(h=>`<li>${h}</li>`).join("")}</ul>
+    </div>
+  </article>`;
+  side.scrollTop=0;
+  side.querySelector(".back").onclick=()=>{
+    markers[id].setIcon(pinIcon(PLACES.indexOf(p)+1,false));selected=null;
+    map.flyTo([22.5,79],5);renderList();
+  };
+  const img=side.querySelector(".hero");
+  if(p.image){const t=new Image();t.onerror=()=>{img.style.backgroundImage=`linear-gradient(135deg,${p.color},#2b2118)`;img.textContent=p.emoji;};t.src=p.image;}
+}
+renderList();
+</script>
+</body>
+</html>
